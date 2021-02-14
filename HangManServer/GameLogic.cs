@@ -44,7 +44,7 @@ namespace HangManServer
             public uint Id;
             public short maxplayers;
             public short maxscore;
-            public List<Player> players;
+            public Dictionary<uint, Player> players;
             public wordCategory category;
             public List<string> wordlist;
             public MatchStatus status;
@@ -60,14 +60,14 @@ namespace HangManServer
             { wordCategory.Pokemon,  new [] { "charizard", "bulbasaur", "mewtoo" } },
         };
        
-        private static List<Match> matchList;
+        private static Dictionary<uint, Match> matchList;
 
         private static System.Random random;
 
         public GameLogic()
         {
             random = new System.Random();
-            matchList = new List<Match>();
+            matchList = new Dictionary<uint, Match>();
         }
 
         public string GetResponse(string request)
@@ -78,9 +78,7 @@ namespace HangManServer
                 return @"{""error"":""blank request""}";
 
             switch(requestData[0])
-            {
-                case "startmatch":
-                
+            {                
 
                 case "updatescore":
                     //request format: updatescore/[matchId]]/[playerId]/[score]
@@ -99,22 +97,27 @@ namespace HangManServer
                     if (!short.TryParse(requestData[3], out newscore))
                         return @"{""error"":""bad score""}";
 
-                    if (!matchList.Any(m => m.Id == matchId))
+                    if (!matchList.ContainsKey(matchId))
                         return @"{""error"":""matchId not found""}";
 
-                    Match m1 = matchList.FirstOrDefault(m => m.Id == matchId);
+                    Match m1 = matchList[matchId];
                     
-                    if(!m1.players.Any(p => p.Id == playerId))
+                    if(!m1.players.ContainsKey(playerId))
                         return @"{""error"":""playerId not found""}";
 
-                    var players = matchList.FirstOrDefault(m => m.Id == matchId).players;
-                    Player p = players.FirstOrDefault(p => p.Id == playerId);
+                    Player updatedPlayer = matchList[matchId].players[playerId];
+                    updatedPlayer.score = newscore;
 
-                    matchList.FirstOrDefault(m => m.Id == matchId).players.Remove(p);                    
-                    p.score = newscore;
-                    matchList.FirstOrDefault(m => m.Id == matchId).players.Add(p);
+                    matchList[matchId].players[playerId] = updatedPlayer;
 
-                    Console.WriteLine($"Player {p.name} with id {p.Id} score updated to {newscore}...");
+                    if(newscore >= matchList[matchId].maxscore)
+                    {
+                        Match tmpMatch = matchList[matchId];
+                        tmpMatch.status = MatchStatus.Ended;
+                        matchList[matchId] = tmpMatch;
+                    }
+
+                    Console.WriteLine($"Player {updatedPlayer.name} with id {updatedPlayer.Id} score updated to {newscore}...");
 
                     return @"{""updatescore"":""ok""}";
 
@@ -127,10 +130,10 @@ namespace HangManServer
                     if(!uint.TryParse(requestData[1], out matchId2))
                         return @"{""error"":""bad matchId""}";                                      
 
-                    if (!matchList.Any(m => m.Id == matchId2))
+                    if (!matchList.ContainsKey(matchId2))
                         return @"{""error"":""matchId not found""}";
 
-                    Match m = matchList.FirstOrDefault(m => m.Id == matchId2);
+                    Match m = matchList[matchId2];
 
                     string json = JsonConvert.SerializeObject(m);
 
@@ -146,10 +149,10 @@ namespace HangManServer
                     if (!uint.TryParse(requestData[1], out mjoinId))
                         return @"{""error"":""bad matchId""}";
 
-                    if (!matchList.Any(m => m.Id == mjoinId))
+                    if (!matchList.ContainsKey(mjoinId))
                         return @"{""error"":""matchId not found""}";
 
-                    Match matchToJoin = matchList.FirstOrDefault(m => m.Id == mjoinId);
+                    Match matchToJoin = matchList[mjoinId];
 
                     string _playername = requestData[2];
 
@@ -157,7 +160,7 @@ namespace HangManServer
                     if (!short.TryParse(requestData[3], out _avatarIndex))
                         return @"{""error"":""bad avatarIndex""}";
 
-                    if (matchToJoin.status == MatchStatus.Waiting)
+                    if (matchToJoin.status == MatchStatus.Waiting && matchList[mjoinId].players.Count < matchList[mjoinId].maxplayers)
                     {
                         Player newPlayer = new Player()
                         {
@@ -167,20 +170,27 @@ namespace HangManServer
                         };
 
                         uint randPlayerId = (uint)random.Next(999999, 999999999);
-                        while (matchToJoin.players.Any(p => p.Id == randPlayerId))
+                        while (matchToJoin.players.ContainsKey(randPlayerId))
                         {
                             randPlayerId = (uint)random.Next(999999, 999999999);
                         }
 
                         newPlayer.Id = randPlayerId;
-                        matchList.FirstOrDefault(m => m.Id == mjoinId).players.Add(newPlayer);
+                        matchList[mjoinId].players.Add(randPlayerId, newPlayer);
+
+                        if (matchList[mjoinId].players.Count == matchList[mjoinId].maxplayers)
+                        {
+                            Match tmpMatch = matchList[mjoinId];
+                            tmpMatch.status = MatchStatus.Started;
+                            matchList[mjoinId] = tmpMatch;
+                        }                            
 
                         Console.WriteLine($"New Player {_playername} joined match {mjoinId}");
 
                         return $"{{\"playerid\":\"{newPlayer.Id}\"}}";
                     }
                     else
-                        return @"{""error"":""match started""}";
+                        return @"{""error"":""match already started""}";
 
                 case "newmatch":
                     //request format: newmatch/[category]/[maxplayers]/[maxscore]
@@ -200,17 +210,17 @@ namespace HangManServer
                         return @"{""error"":""bad maxscore""}";
 
                     uint randMatchId = (uint)random.Next(10000, 999999);
-                    while(matchList.Any(m => m.Id == randMatchId))
+                    while(matchList.ContainsKey(randMatchId))
                     {
                         randMatchId = (uint)random.Next(10000, 999999);                        
                     }
-                    matchList.Add(new Match()
+                    matchList.Add(randMatchId, new Match()
                     {
                         Id = randMatchId,
                         category = matchCategory,
                         maxplayers = _maxplayers,
                         maxscore = _maxscore,
-                        players = new List<Player>(),
+                        players = new Dictionary<uint, Player>(),
                         wordlist = new List<string>(),
                         status = MatchStatus.Waiting
                     });
