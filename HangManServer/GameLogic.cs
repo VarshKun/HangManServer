@@ -51,13 +51,13 @@ namespace HangManServer
         }
 
         private Dictionary<wordCategory, string[]> wordDictionary = new Dictionary<wordCategory, string[]>() { 
-            { wordCategory.General, new [] { "ability", "absolutely" } },
-            { wordCategory.Animals, new [] { "dog", "cat" } },
-            { wordCategory.Foods,  new [] { "pizza", "orange" } },
-            { wordCategory.Games,  new [] { "billiard", "carrom" } },
-            { wordCategory.Jobs, new [] { "policeman", "fireman" } },
-            { wordCategory.Objects,  new [] { "ball", "phone" } },
-            { wordCategory.Pokemon,  new [] { "charizard", "bulbasaur", "mewtoo" } },
+            { wordCategory.General, new [] { "ability", "microwave", "unknown","thriftless","bagpipes","awkward","fuchsia","jigsaw","pneumonia","fluffiness","abruptly","equip","jackpot","avenue","joyful","scratch","ivory","jogging","keyhole","rickshaw","cobweb","quiz","oak","joker","huge","jazz"} },
+            { wordCategory.Animals, new [] { "dog", "alpaca","donkey","kangaroo","nymph","orangutan","panda","squirell","vulture","zebra","tadpole","butterfly","wasp","yak","pelican","leopard","macaw","parrot","rabbit","hamster","firefly","eagle","coyote","albatross","chipmunk","dolphin"} },
+            { wordCategory.Foods,  new [] { "lasagna", "sandwich","barbecue","eggplant","gingerbread","asparagus","grapefruit","lobster","marshmallow","spaghetti","watermelon","pepperoni","oyster","mozarella","dragonfruit","cauliflower","biscuit","coleslaw","mayonnaise","breadfruit","noodles","oatmeal","pumpkin","quinoa","tapioca","watercress" } },
+            { wordCategory.Games,  new [] { "billiard", "carrom","bowling","basketball","pubg","rugby","football","chess","minecraft","volleyball","baseball","valorant","hockey","archery","cricket","fortnite","puzzle","apex","surfing","cyberpunk","poker","domino","golf","snowboarding","ludo","scrabble"} },
+            { wordCategory.Jobs, new [] { "policeman", "fireman","babysitter","dentist","investigator","musician","artist","receptionist","pilot","zoologist","politician","optician","accountant","carpenter","dermatologist","hairdresser","nurse","referee","sailor","teacher","programmer","linguist","lawyer","gardener","chef","barber","psychologist" } },
+            { wordCategory.Objects,  new [] { "ball", "phone","diary","bottle","tissue","glasses","watch","photo","stamp","camera","pencil","dictionary","toothbrush","wallet","lipstick","purse","scissors","notebook","newspaper","laptop","eraser","calculator","umbrella","key","coin","jewelry","knife","tablecloth","shoe","magnet","flashlight","blanket","handkerchief"} },
+            { wordCategory.Pokemon,  new [] { "charizard", "bulbasaur", "mewtoo","calyrex","spectrier","glastrier","regidrago","dragapult","pikachu","charmander","squirtle","charmeleon","butterfree","pidgey","raichu","clefairy","jigglypuff","golbat","gloom","wigglytuff" } },
         };
        
         private static Dictionary<uint, Match> matchList;
@@ -104,6 +104,9 @@ namespace HangManServer
                     
                     if(!m1.players.ContainsKey(playerId))
                         return @"{""error"":""playerId not found""}";
+
+                    if(m1.status != MatchStatus.Started)
+                        return @"{""error"":""Match not active!""}";
 
                     Player updatedPlayer = matchList[matchId].players[playerId];
                     updatedPlayer.score = newscore;
@@ -221,7 +224,7 @@ namespace HangManServer
                         maxplayers = _maxplayers,
                         maxscore = _maxscore,
                         players = new Dictionary<uint, Player>(),
-                        wordlist = new List<string>(),
+                        wordlist = wordDictionary[matchCategory].ToList(),
                         status = MatchStatus.Waiting
                     });
 
